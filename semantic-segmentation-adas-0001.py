@@ -4,6 +4,7 @@ from openvino.inference_engine import IECore
 from imutils import paths
 
 TEST_PATH = "Images"
+VIDEO_PATH = "Video/BlindspotFront.mp4"
 PAINT = True
 
 pColor = (0, 0, 255)
@@ -89,7 +90,7 @@ def semantic_segmentationDetection(
     ).get(semantic_segmentation_output_blob)
 
     # Prepare data for visualization
-    segmentation_mask = np.argmax(semantic_segmentation_results, axis=1)
+    segmentation_mask = semantic_segmentation_results[0]
 
     # search elements in the matrix
     semantic_segment_objects = [
@@ -119,17 +120,23 @@ def semantic_segmentationDetection(
         elem_num += 1
         if any(elem_num in sub for sub in segmentation_mask[0]):
             detections.append(elem)
+    if detections:
+        print(detections)
+        # Use function from notebook_utils.py to transform mask to an RGB image
+        mask = segmentation_map_to_image(segmentation_mask, colormap)
+        resized_mask = cv2.resize(mask, (image_w, image_h))
+        smaller_mask = cv2.resize(mask, (image_w, image_h))
+        cv2.imshow("smaller_mask", smaller_mask)
+        cv2.waitKey(0)
+        cv2.imshow("rgb_image", rgb_image)
+        cv2.waitKey(0)
 
-    # Use function from notebook_utils.py to transform mask to an RGB image
-    mask = segmentation_map_to_image(segmentation_mask, colormap)
-    resized_mask = cv2.resize(mask, (image_w, image_h))
-    cv2.imshow("mask", resized_mask)
-    cv2.waitKey(0)
+        # Create image with mask put on
+        image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-    # Create image with mask put on
-    image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
-
-    cv2.imshow("image_with_mask", image_with_mask)
+        cv2.imshow("image_with_mask", image_with_mask)
+    else:
+        print("NO DETECTIONS.")
 
 
 def main():
@@ -140,16 +147,16 @@ def main():
         model=semantic_segmentation_model_xml, weights=semantic_segmentation_model_bin
     )
     if semantic_segmentation_neural_net is not None:
-        semantic_segmentation_input_blob = next(
-            iter(semantic_segmentation_neural_net.input_info)
-        )
-        semantic_segmentation_output_blob = next(
-            iter(semantic_segmentation_neural_net.outputs)
-        )
-        semantic_segmentation_neural_net.batch_size = 1
         semantic_segmentation_execution_net = ie.load_network(
             network=semantic_segmentation_neural_net, device_name=device.upper()
         )
+        semantic_segmentation_input_blob = next(
+            iter(semantic_segmentation_execution_net.input_info)
+        )
+        semantic_segmentation_output_blob = next(
+            iter(semantic_segmentation_execution_net.outputs)
+        )
+        semantic_segmentation_neural_net.batch_size = 1
 
     # print(semantic_segmentation_neural_net.input_info[semantic_segmentation_input_blob].input_data.shape)
     # Define colormap, each color represents a class:
@@ -182,12 +189,17 @@ def main():
     # Define the transparency of the segmentation mask on the photo
     alpha = 0.2
 
+    vidcap = cv2.VideoCapture(VIDEO_PATH)
+    success, img = vidcap.read()
+
+    """
     for imagePath in paths.list_images(TEST_PATH):
         print(imagePath)
         img = cv2.imread(imagePath)
         if img is None:
             continue
-
+    """
+    while success:
         semantic_segmentationDetection(
             img,
             semantic_segmentation_neural_net,
@@ -197,7 +209,9 @@ def main():
             colormap,
             alpha,
         )
-        cv2.waitKey(0)
+        if cv2.waitKey(10) == 27:  # exit if Escape is hit
+            break
+        success, img = vidcap.read()
 
 
 if __name__ == "__main__":
