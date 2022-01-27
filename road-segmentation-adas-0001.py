@@ -8,6 +8,7 @@ PAINT = True
 
 pColor = (0, 0, 255)
 rectThinkness = 1
+alpha = 0.9
 
 road_segmentation_model_xml = "./model/road-segmentation-adas-0001.xml"
 road_segmentation_model_bin = "./model/road-segmentation-adas-0001.bin"
@@ -69,7 +70,6 @@ def road_segmentationDetection(
     road_segmentation_input_blob,
     road_segmentation_output_blob,
     colormap,
-    alpha,
 ):
 
     detections = []
@@ -78,7 +78,6 @@ def road_segmentationDetection(
     ].tensor_desc.dims
     resized_frame = cv2.resize(frame, (W, H))
     image_h, image_w, _ = frame.shape
-    rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # reshape to network input shape
     # Change data layout from HWC to CHW
@@ -106,7 +105,7 @@ def road_segmentationDetection(
     cv2.waitKey(0)
 
     # Create image with mask put on
-    image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
+    image_with_mask = cv2.addWeighted(resized_mask, alpha, frame, 0.8, 0)
 
     cv2.imshow("image_with_mask", image_with_mask)
 
@@ -129,12 +128,11 @@ def main():
         )
 
     # print(road_segmentation_neural_net.input_info[road_segmentation_input_blob].input_data.shape)
-    # Define colormap, each color represents a class:
-    # background: white, road: blue, curb: green, lanemark: red
-    colormap = np.array([[255, 255, 255], [255, 0, 0], [0, 255, 0], [0, 0, 255]])
+    # Define colormap BGR , each color represents a class:
+    # background: black, road: purple, curb: orange, lanemark: yellow
+    colormap = np.array([[0, 0, 0], [153, 76, 0], [0, 0, 255], [0, 255, 0]])
 
     # Define the transparency of the segmentation mask on the photo
-    alpha = 0.2
 
     for imagePath in paths.list_images(TEST_PATH):
         print(imagePath)
@@ -149,7 +147,6 @@ def main():
             road_segmentation_input_blob,
             road_segmentation_output_blob,
             colormap,
-            alpha,
         )
         cv2.waitKey(0)
 
