@@ -9,6 +9,7 @@ PAINT = True
 
 pColor = (0, 0, 255)
 rectThinkness = 1
+alpha = 0.8
 
 semantic_segmentation_model_xml = "./model/semantic-segmentation-adas-0001.xml"
 semantic_segmentation_model_bin = "./model/semantic-segmentation-adas-0001.bin"
@@ -70,7 +71,6 @@ def semantic_segmentationDetection(
     semantic_segmentation_input_blob,
     semantic_segmentation_output_blob,
     colormap,
-    alpha,
 ):
 
     detections = []
@@ -79,7 +79,6 @@ def semantic_segmentationDetection(
     ].tensor_desc.dims
     resized_frame = cv2.resize(frame, (W, H))
     image_h, image_w, _ = frame.shape
-    rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # reshape to network input shape
     # Change data layout from HWC to CHW
@@ -128,11 +127,9 @@ def semantic_segmentationDetection(
         smaller_mask = cv2.resize(mask, (image_w, image_h))
         cv2.imshow("smaller_mask", smaller_mask)
         cv2.waitKey(0)
-        cv2.imshow("rgb_image", rgb_image)
-        cv2.waitKey(0)
 
         # Create image with mask put on
-        image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
+        image_with_mask = cv2.addWeighted(resized_mask, alpha, frame, 0.9, 0)
 
         cv2.imshow("image_with_mask", image_with_mask)
     else:
@@ -163,21 +160,21 @@ def main():
     # background: white, semantic: blue, curb: green, lanemark: red
     colormap = np.array(
         [
-            [255, 255, 255],
-            [255, 0, 0],
-            [0, 255, 0],
-            [0, 0, 255],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
             [145, 163, 176],  # blue-alice
-            [245, 245, 220],  # beige
-            [62, 174, 177],  # blue-deck
-            [206, 70, 118],  # bougainvillea
-            [151, 127, 115],  # brown-buckskin
-            [201, 174, 93],  # brown-buf1
-            [201, 174, 171],  # brown-buf2
+            [0, 100, 255],  # dark orange
+            [0, 255, 255],  # yellow
+            [129, 135, 139],  # gray-cadete2
+            [0, 0, 0],  # black
+            [0, 0, 0],  # black
+            [0, 0, 0],  # black
             [103, 49, 71],  # purple-burgundy1
-            [84, 61, 63],  # purple-burgundy2
-            [80, 64, 77],  # purple-burgundy3
-            [145, 163, 176],  # gray-cadete1
+            [139, 0, 0],  # purple-burgundy2
+            [0, 0, 0],  # black
+            [139, 0, 0],  # dark blue
             [129, 135, 139],  # gray-cadete2
             [138, 154, 91],  # green-spring1
             [147, 197, 146],  # green-spring2
@@ -186,19 +183,9 @@ def main():
         ]
     )
 
-    # Define the transparency of the segmentation mask on the photo
-    alpha = 0.2
-
     vidcap = cv2.VideoCapture(VIDEO_PATH)
     success, img = vidcap.read()
 
-    """
-    for imagePath in paths.list_images(TEST_PATH):
-        print(imagePath)
-        img = cv2.imread(imagePath)
-        if img is None:
-            continue
-    """
     while success:
         semantic_segmentationDetection(
             img,
@@ -207,7 +194,6 @@ def main():
             semantic_segmentation_input_blob,
             semantic_segmentation_output_blob,
             colormap,
-            alpha,
         )
         if cv2.waitKey(10) == 27:  # exit if Escape is hit
             break
